@@ -8,7 +8,7 @@
 
 **تقديم شركة سوفت استريم — Soft Stream**
 
-[🔗 فتح النسخة التجريبية](https://mohamedashraf2814-cmyk.github.io/elmarwa/) · [طريقة التشغيل](#-طريقة-التشغيل) · [حسابات العرض](#-حسابات-العرض) · [سيناريو العرض التقديمي](docs/DEMO-SCRIPT.md)
+[🔗 فتح النسخة التجريبية](https://mohamedashraf2814-cmyk.github.io/Elmarwa/) · [طريقة التشغيل](#-طريقة-التشغيل) · [حسابات العرض](#-حسابات-العرض) · [سيناريو العرض التقديمي](docs/DEMO-SCRIPT.md)
 
 </div>
 
@@ -56,13 +56,13 @@
 
 ### الطريقة الأولى: الرابط المباشر
 
-افتح: **https://mohamedashraf2814-cmyk.github.io/elmarwa/**
+افتح: **https://mohamedashraf2814-cmyk.github.io/Elmarwa/**
 
 ### الطريقة الثانية: فتح الملف مباشرة
 
 1. حمّل المشروع: زر **Code ← Download ZIP** ثم فك الضغط، أو:
    ```bash
-   git clone https://github.com/mohamedashraf2814-cmyk/elmarwa.git
+   git clone https://github.com/mohamedashraf2814-cmyk/Elmarwa.git
    ```
 2. افتح ملف `index.html` بالضغط المزدوج في Chrome أو Edge أو Firefox.
 
