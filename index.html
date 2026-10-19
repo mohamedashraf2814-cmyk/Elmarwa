@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>مستشفى المروة — نظام إدارة المستشفى</title>
+  <meta name="description" content="مستشفى المروة: نظام متكامل لإدارة المستشفى مع محرك ومصمم سير عمل مرئي. تقديم شركة سوفت استريم.">
+  <meta name="theme-color" content="#1B2E6B">
+  <link rel="icon" type="image/svg+xml" href="assets/img/logo.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=El+Messiri:wght@500;600;700&family=Readex+Pro:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/app.css">
+  <link rel="stylesheet" href="assets/css/views.css">
+  <link rel="stylesheet" href="assets/css/workflow.css">
+</head>
+<body>
+  <div id="app" aria-live="polite"></div>
+  <div id="toasts" class="toasts" role="status"></div>
+  <div id="modal-root"></div>
+
+  <noscript>يحتاج نظام المروة إلى تفعيل JavaScript في المتصفح.</noscript>
+
+  <!-- النواة -->
+  <script src="assets/js/core/util.js"></script>
+  <script src="assets/js/core/icons.js"></script>
+  <!-- البيانات التجريبية -->
+  <script src="assets/js/data/reference.js"></script>
+  <script src="assets/js/data/seed.js"></script>
+  <script src="assets/js/data/scenarios.js"></script>
+  <script src="assets/js/data/workflow-templates.js"></script>
+  <!-- المخزن ومحرك سير العمل -->
+  <script src="assets/js/core/store.js"></script>
+  <script src="assets/js/workflow/engine.js"></script>
+  <script src="assets/js/core/ui.js"></script>
+  <!-- الشاشات -->
+  <script src="assets/js/views/login.js"></script>
+  <script src="assets/js/views/dashboard.js"></script>
+  <script src="assets/js/views/patients.js"></script>
+  <script src="assets/js/views/appointments.js"></script>
+  <script src="assets/js/views/emergency.js"></script>
+  <script src="assets/js/views/clinic.js"></script>
+  <script src="assets/js/views/nursing.js"></script>
+  <script src="assets/js/views/worklists.js"></script>
+  <script src="assets/js/views/pharmacy.js"></script>
+  <script src="assets/js/views/beds.js"></script>
+  <script src="assets/js/views/surgery.js"></script>
+  <script src="assets/js/views/billing.js"></script>
+  <script src="assets/js/views/inventory.js"></script>
+  <script src="assets/js/views/admin.js"></script>
+  <script src="assets/js/views/scenarios.js"></script>
+  <script src="assets/js/views/about.js"></script>
+  <script src="assets/js/workflow/designer.js"></script>
+  <script src="assets/js/views/workflows.js"></script>
+  <!-- التشغيل -->
+  <script src="assets/js/app.js"></script>
+</body>
+</html>

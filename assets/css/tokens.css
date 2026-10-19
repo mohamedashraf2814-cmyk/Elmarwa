@@ -1,0 +1,70 @@
+/* =========================================================
+   مستشفى المروة — نظام الألوان والخطوط
+   مستوحى من خزف القيشاني المصري: لازوردي، فيروزي، حجر بارد
+   ========================================================= */
+:root {
+  /* الألوان الأساسية */
+  --lapis-900: #101C45;
+  --lapis-800: #16255A;
+  --lapis-700: #1B2E6B;   /* هيكل التطبيق */
+  --lapis-500: #3A55A8;
+  --lapis-100: #E3E8F6;
+
+  --faience-700: #0C7A73;
+  --faience-600: #0F8F87;
+  --faience-500: #14A39A;  /* اللون الأساسي — الحالة السليمة والإجراءات */
+  --faience-300: #3FD1C4;
+  --faience-100: #DDF4F1;
+
+  --stone-0: #FFFFFF;
+  --stone-50: #F3F6F6;    /* خلفية التطبيق */
+  --stone-100: #E9EFEF;
+  --stone-200: #DCE4E5;
+  --stone-300: #C3CFD1;
+
+  --ink-900: #13213F;     /* النص */
+  --ink-600: #4C5A73;
+  --ink-500: #67748A;
+  --ink-400: #8A95A8;
+
+  --saffron-600: #C98410;
+  --saffron-500: #F0AE2E;  /* تنبيه / قيد الانتظار */
+  --saffron-100: #FDF1D6;
+
+  --rose-600: #C42F36;
+  --rose-500: #E0444B;     /* حرج */
+  --rose-100: #FCE3E4;
+
+  --violet-500: #7A5AF0;   /* تفرع متوازي */
+  --violet-100: #ECE7FD;
+
+  /* الخطوط */
+  --font-display: "El Messiri", "Readex Pro", "Segoe UI", Tahoma, sans-serif;
+  --font-body: "Readex Pro", "Segoe UI", Tahoma, "Noto Sans Arabic", sans-serif;
+
+  /* مقياس الطباعة (نسبة 1.2) */
+  --fs-xs: .75rem;
+  --fs-sm: .8125rem;
+  --fs-md: .9375rem;
+  --fs-lg: 1.125rem;
+  --fs-xl: 1.375rem;
+  --fs-2xl: 1.75rem;
+  --fs-3xl: 2.25rem;
+  --fs-hero: 3.25rem;
+
+  /* المسافات */
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px;
+  --sp-5: 20px; --sp-6: 24px; --sp-8: 32px; --sp-10: 40px;
+
+  /* الحواف — هرمية مقصودة */
+  --r-panel: 16px;
+  --r-control: 10px;
+  --r-chip: 999px;
+
+  --shadow-panel: 0 1px 0 rgba(19, 33, 63, .04), 0 8px 24px -16px rgba(19, 33, 63, .25);
+  --shadow-float: 0 20px 48px -20px rgba(16, 28, 69, .45);
+
+  --sidebar-w: 268px;
+  --topbar-h: 64px;
+  --ease: cubic-bezier(.2, .7, .2, 1);
+}
