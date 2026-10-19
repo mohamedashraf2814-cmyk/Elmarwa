@@ -13,13 +13,20 @@
     { path: 'emergency', view: 'emergency', label: 'الطوارئ', icon: 'siren', perm: 'er.view', group: 'رحلة المريض', badge: 'er' },
     { path: 'clinic', view: 'clinic', label: 'مساحة الطبيب', icon: 'stethoscope', perm: 'clinic.consult', group: 'رحلة المريض' },
     { path: 'nursing', view: 'nursing', label: 'التمريض', icon: 'heart', perm: 'nursing.tasks', group: 'رحلة المريض' },
+    { path: 'discharge', view: 'discharge', label: 'الخروج والمتابعة', icon: 'logout', perm: 'discharge.manage', group: 'رحلة المريض', badge: 'dis' },
     { path: 'lab', view: 'lab', label: 'المعمل', icon: 'flask', perm: 'lab.view', group: 'التشخيص والعلاج', badge: 'critical' },
     { path: 'radiology', view: 'radiology', label: 'الأشعة', icon: 'scan', perm: 'rad.view', group: 'التشخيص والعلاج' },
     { path: 'pharmacy', view: 'pharmacy', label: 'الصيدلية', icon: 'pill', perm: 'pharmacy.view', group: 'التشخيص والعلاج', badge: 'rx' },
     { path: 'beds', view: 'beds', label: 'إدارة الأسرّة', icon: 'bed', perm: 'beds.view', group: 'الإقامة والعمليات' },
+    { path: 'icu', view: 'icu', label: 'العناية المركزة', icon: 'pulse', perm: 'beds.view', group: 'الإقامة والعمليات' },
     { path: 'surgery', view: 'surgery', label: 'العمليات', icon: 'scalpel', perm: 'surgery.view', group: 'الإقامة والعمليات' },
+    { path: 'housekeeping', view: 'housekeeping', label: 'النظافة وتجهيز الأسرّة', icon: 'sparkle', perm: 'housekeeping.manage', group: 'الإقامة والعمليات', badge: 'hk' },
     { path: 'billing', view: 'billing', label: 'الحسابات والتأمين', icon: 'wallet', perm: 'billing.view', group: 'المالية والمخازن' },
     { path: 'inventory', view: 'inventory', label: 'المخزون', icon: 'box', perm: 'inventory.view', group: 'المالية والمخازن' },
+    { path: 'hr', view: 'hr', label: 'الموارد البشرية والمناوبات', icon: 'users', perm: 'hr.manage', group: 'الخدمات المساندة' },
+    { path: 'biomed', view: 'biomed', label: 'صيانة الأجهزة الطبية', icon: 'settings', perm: 'biomed.manage', group: 'الخدمات المساندة' },
+    { path: 'records', view: 'records', label: 'السجلات الطبية', icon: 'file', perm: 'records.manage', group: 'الخدمات المساندة' },
+    { path: 'quality', view: 'quality', label: 'الجودة وسلامة المرضى', icon: 'shield', perm: 'quality.manage', group: 'الخدمات المساندة' },
     { path: 'admin/workflows', view: 'workflows', label: 'مصمم سير العمل', icon: 'flow', perm: 'workflows.view', group: 'سير العمل' },
     { path: 'admin/workflows/:id', view: 'designer', perm: 'workflows.view', hidden: true, parent: 'admin/workflows' },
     { path: 'workflows/monitor', view: 'monitor', label: 'مراقبة التنفيذ', icon: 'monitor', perm: 'workflows.monitor', group: 'سير العمل', badge: 'overdue' },
@@ -53,7 +60,9 @@
       case 'critical': return s.lab.filter((x) => x.critical && !x.ackBy).length;
       case 'rx': return s.rx.filter((x) => x.status === 'on_hold').length;
       case 'overdue': return store.openTasks().filter((t) => t.overdue).length;
-      case 'tasks': return store.openTasks().filter((t) => t.node.config.role === store.session?.role).length;
+      case 'tasks': return store.openTasks().filter((t) => store.isOwner() ? t.overdue : t.node.config.role === store.session?.role).length;
+      case 'dis': return s.discharges.filter((d) => d.status === 'in_progress').length;
+      case 'hk': return s.housekeeping.filter((j) => j.status !== 'done').length;
       default: return 0;
     }
   }
@@ -94,6 +103,9 @@
           </div>
           <div class="topbar-actions">
             <span class="clock num" id="clock"></span>
+            <button class="btn ghost cmd-btn" id="cmdBtn" aria-label="لوحة الأوامر">${icon('search', 'sm')}<span>بحث وأوامر</span><kbd>Ctrl K</kbd></button>
+            <button class="icon-btn" id="nightBtn" aria-label="وضع المناوبة الليلية" title="وضع المناوبة الليلية">${icon('moon')}</button>
+            <button class="assist-btn" id="assistBtn" aria-label="مساعد التشغيل">${icon('sparkle', 'sm')}<span>مساعد التشغيل</span><b class="num" id="assistN"></b></button>
             <button class="icon-btn" id="bell" aria-label="الإشعارات">${icon('bell')}${unread ? `<span class="dot">${unread}</span>` : ''}</button>
             <button class="user-chip" id="userChip" aria-label="تبديل المستخدم">
               <span class="avatar">${esc(EM.initials(u.name.replace(/^(د\.|م\.|أ\.|ممرض\/|ممرضة\/)\s*/, '')))}</span>
@@ -158,6 +170,10 @@
     document.addEventListener('click', (e) => { if (!e.target.closest('.global-search')) out.innerHTML = ''; });
     document.getElementById('bell').addEventListener('click', openNotifications);
     document.getElementById('userChip').addEventListener('click', switchUser);
+    document.getElementById('assistBtn').addEventListener('click', openAssistant);
+    document.getElementById('cmdBtn').addEventListener('click', openPalette);
+    document.getElementById('nightBtn').addEventListener('click', () => setTheme(document.documentElement.dataset.theme === 'night' ? 'day' : 'night'));
+    refreshAssist();
   }
 
   function openNotifications() {
@@ -196,6 +212,78 @@
     });
   }
 
+  function refreshAssist() {
+    const n = document.getElementById('assistN');
+    if (!n) return;
+    const list = EM.insights();
+    const urgent = list.filter((i) => i.level === 'bad' || i.level === 'warn').length;
+    n.textContent = urgent || '';
+    n.className = `num ${list.some((i) => i.level === 'bad') ? 'hot' : ''}`;
+  }
+  EM.refreshAssist = refreshAssist;
+
+  /* ---------- مساعد التشغيل ---------- */
+  function openAssistant() {
+    const deptByRoute = { emergency: 'er', lab: 'lab', beds: 'beds', discharge: 'discharge', housekeeping: 'housekeeping', pharmacy: 'pharmacy', inventory: 'inventory', billing: 'billing', hr: 'hr', biomed: 'biomed' };
+    const here = deptByRoute[current?.route.path];
+    const list = EM.insights();
+    const sorted = here ? [...list.filter((i) => i.dept === here), ...list.filter((i) => i.dept !== here)] : list;
+    ui.drawer('مساعد التشغيل', `<div class="assist-intro">${icon('sparkle')}<p>أقرأ حالة كل الأقسام الآن وأقترح الخطوة التالية. أتعامل مع التشغيل فقط — الأسرّة والطوابير والمخزون والطاقم والفواتير — ولا أقترح تشخيصاً أو علاجاً.</p></div>${EM.insightList(sorted)}`, (d, close) => {
+      d.addEventListener('click', (e) => { const b = e.target.closest('[data-insight]'); if (b) { const i = list.find((x) => x.id === b.dataset.insight); if (i?.action?.link) close(); EM.runInsight(b.dataset.insight); if (!i?.action?.link) { close(); openAssistant(); } } });
+    });
+  }
+
+  /* ---------- لوحة الأوامر ---------- */
+  const ACTIONS = [
+    ['تسجيل مريض جديد', '#/patients', 'plus', () => setTimeout(() => EM.registerPatient?.(() => EM.rerender()), 200)],
+    ['تسجيل وصول للطوارئ', '#/emergency', 'siren'],
+    ['حجز موعد', '#/appointments', 'calendar'],
+    ['تخصيص سرير لطلب دخول', '#/beds', 'bed'],
+    ['بدء إجراءات خروج', '#/discharge', 'logout'],
+    ['بلاغ سلامة جديد', '#/quality', 'alert'],
+    ['تصميم مسار عمل جديد', '#/admin/workflows', 'flow'],
+    ['المهام المتأخرة', '#/workflows/monitor', 'clock'],
+  ];
+  function openPalette() {
+    ui.modal({
+      title: 'بحث وأوامر',
+      body: `<input id="cmdq" class="input cmd-input" placeholder="اكتب اسم مريض، قسم، أو إجراء…" autocomplete="off"><ul class="cmd-list" id="cmdl" role="listbox"></ul><p class="xs muted">↑ ↓ للتنقل · Enter للفتح · Esc للإغلاق</p>`,
+      onMount(m, close) {
+        const q = m.querySelector('#cmdq');
+        const l = m.querySelector('#cmdl');
+        let items = [];
+        let sel = 0;
+        const draw = () => {
+          const t = q.value.trim();
+          const pages = ROUTES.filter((r) => !r.hidden && (!r.perm || store.can(r.perm)) && EM.match(t, r.label)).map((r) => ({ kind: 'صفحة', label: r.label, icon: r.icon, go: `#/${r.path}` }));
+          const acts = ACTIONS.filter(([n]) => EM.match(t, n)).map(([n, h, i, fn]) => ({ kind: 'إجراء', label: n, icon: i, go: h, fn }));
+          const pts = t.length >= 2 && store.can('patients.view') ? store.state.patients.filter((p) => EM.match(t, p.name, p.id, p.phone)).slice(0, 6).map((p) => ({ kind: EM.H.locate(p.id).label, label: p.name, icon: 'user', go: `#/patients/${p.id}` })) : [];
+          items = [...pts, ...acts, ...pages].slice(0, 12);
+          sel = Math.min(sel, Math.max(0, items.length - 1));
+          l.innerHTML = items.map((it, i) => `<li role="option" aria-selected="${i === sel}" class="${i === sel ? 'on' : ''}" data-i="${i}">${icon(it.icon, 'sm')}<span class="grow">${esc(it.label)}</span><span class="xs muted">${esc(it.kind)}</span></li>`).join('') || '<li class="muted small">لا توجد نتائج</li>';
+        };
+        const go = (i) => { const it = items[i]; if (!it) return; close(); location.hash = it.go; it.fn?.(); };
+        q.addEventListener('input', () => { sel = 0; draw(); });
+        q.addEventListener('keydown', (e) => {
+          if (e.key === 'ArrowDown') { sel = Math.min(items.length - 1, sel + 1); draw(); e.preventDefault(); }
+          if (e.key === 'ArrowUp') { sel = Math.max(0, sel - 1); draw(); e.preventDefault(); }
+          if (e.key === 'Enter') { go(sel); e.preventDefault(); }
+        });
+        l.addEventListener('click', (e) => { const li = e.target.closest('[data-i]'); if (li) go(Number(li.dataset.i)); });
+        draw();
+        setTimeout(() => q.focus(), 40);
+      },
+    });
+  }
+
+  /* ---------- وضع المناوبة الليلية ---------- */
+  function setTheme(t) {
+    document.documentElement.dataset.theme = t;
+    try { localStorage.setItem('elmarwa.theme', t); } catch { /* */ }
+    const b = document.getElementById('nightBtn');
+    if (b) b.innerHTML = icon(t === 'night' ? 'sun' : 'moon');
+  }
+
   function tickClock() {
     const c = document.getElementById('clock');
     if (c) c.textContent = `${EM.fmt.day(new Date())} ${EM.fmt.time(new Date())}`;
@@ -212,13 +300,25 @@
     }
     const nav = document.getElementById('nav');
     if (nav && current) nav.innerHTML = renderNav(current.route.path);
+    refreshAssist();
   }
 
   function boot() {
+    try { const t = localStorage.getItem('elmarwa.theme'); if (t) document.documentElement.dataset.theme = t; } catch { /* */ }
     store.init();
+    document.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k' && store.session) { e.preventDefault(); openPalette(); }
+    });
+    document.addEventListener('click', (e) => {
+      const b = e.target.closest('#view [data-insight]');
+      if (b) EM.runInsight(b.dataset.insight);
+    });
     window.addEventListener('hashchange', render);
     store.on((what) => {
       if (what === 'reset') { document.getElementById('app').innerHTML = ''; render(); }
+      refreshAssist();
+      const nav = document.getElementById('nav');
+      if (nav && current) nav.innerHTML = renderNav(current.route.path);
       if (what === 'notifications') {
         const bell = document.getElementById('bell');
         const unread = store.state.notifications.filter((n) => !n.read).length;

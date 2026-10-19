@@ -67,6 +67,7 @@
     minutes(min) {
       min = Math.round(min);
       if (Math.abs(min) < 60) return `${min} د`;
+      if (Math.abs(min) >= 1440) { const d = Math.floor(Math.abs(min) / 1440); const hh = Math.floor((Math.abs(min) % 1440) / 60); return `${min < 0 ? '-' : ''}${d} يوم${hh ? ` ${hh} س` : ''}`; }
       const h = Math.floor(Math.abs(min) / 60);
       const m = Math.abs(min) % 60;
       return `${min < 0 ? '-' : ''}${h} س${m ? ` ${m} د` : ''}`;
@@ -100,7 +101,7 @@
   };
 
   EM.initials = (name) => {
-    const parts = String(name || '').trim().split(/\s+/);
+    const parts = String(name || '').trim().split(/\s+/).map((w) => w.replace(/^ال(?=..)/, ''));
     return (parts[0]?.[0] || '') + (parts[1]?.[0] || '');
   };
 

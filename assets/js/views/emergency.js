@@ -40,26 +40,40 @@
           if (!store.guard('orders.create', 'طلب تحاليل')) return;
           const e = s.er.find((x) => x.id === b.dataset.id);
           if (!e.patientId) { ui.toast('اربط الحالة بملف مريض أولاً (حتى لو مؤقت)', 'warn'); return; }
-          ['TROP', 'CBC'].forEach((code) => s.lab.unshift({ id: EM.uid('LAB'), patientId: e.patientId, test: code, priority: 'STAT', stage: 'ordered', orderedAt: new Date().toISOString(), orderedBy: store.user().id, source: 'er', result: null, critical: false, dueAt: EM.minsFromNow(30) }));
-          e.status = 'awaiting_results';
-          store.audit('طلب تحاليل عاجلة من الطوارئ', 'er', e.id);
-          store.commit('er'); ui.toast('أُرسل طلب STAT للمعمل', 'ok'); this.render(el);
+          ordersModal(e, () => this.render(el));
         },
         dispo: (b) => {
           if (!store.guard('clinic.consult', 'القرار النهائي')) return;
           const e = s.er.find((x) => x.id === b.dataset.id);
           ui.modal({
             title: 'القرار النهائي للحالة',
-            body: `<div class="seg" role="radiogroup">${Object.entries(DISP).map(([k, t]) => `<button data-d="${k}">${t}</button>`).join('')}</div><p class="small muted">قرار الدخول يُنشئ طلب سرير تلقائياً في لوحة الأسرّة.</p>`,
+            body: `<div class="field"><label for="d-ward">الجناح عند الدخول</label><select id="d-ward" class="input">${ui.options(EM.REF.wards.map((w) => [w.id, w.name]), e.level && e.level <= 2 ? 'W-ICU' : 'W-MED')}</select></div>
+              <div class="seg" role="radiogroup">${Object.entries(DISP).map(([k, t]) => `<button data-d="${k}">${t}</button>`).join('')}</div>
+              <p class="small muted">الدخول يُنشئ طلب سرير في لوحة الأسرّة ويقترح أنسب سرير متاح. الخروج يغلق الزيارة ويرحّل الفاتورة ويحجز متابعة.</p>`,
             onMount: (m, close) => m.querySelectorAll('[data-d]').forEach((x) => x.addEventListener('click', () => {
-              e.disposition = x.dataset.d; e.status = 'disposition';
-              if (x.dataset.d === 'admit') s.bedRequests.unshift({ id: EM.uid('ADM'), patientId: e.patientId, from: 'الطوارئ', ward: 'W-MED', reason: e.complaint, requestedAt: new Date().toISOString(), priority: e.level <= 2 ? 'حرج' : 'عاجل', isolation: false });
-              store.audit(`قرار طوارئ: ${DISP[x.dataset.d]}`, 'er', e.id);
+              if (!e.patientId) { ui.toast('اربط الحالة بملف مريض أولاً', 'warn'); return; }
+              EM.H.erDisposition(e, x.dataset.d, m.querySelector('#d-ward').value);
               store.commit('er'); close(); ui.toast(`تم: ${DISP[x.dataset.d]}`, 'ok'); this.render(el);
             })),
           });
         },
-        close: (b) => { const e = s.er.find((x) => x.id === b.dataset.id); e.closed = true; store.audit('إغلاق زيارة طوارئ', 'er', e.id); store.commit('er'); this.render(el); },
+        link: (b) => {
+          const e = s.er.find((x) => x.id === b.dataset.id);
+          ui.modal({
+            title: 'ربط الحالة بملف مريض',
+            body: `<p class="small muted">ابحث عن ملف موجود، أو سجّل الحالة كمريض جديد بهوية مؤقتة.</p><div class="field"><label for="lk-p">الملف</label><select id="lk-p" class="input">${store.state.patients.slice(0, 70).map((p) => `<option value="${esc(p.id)}">${esc(p.name)} — ${esc(p.id)}</option>`).join('')}</select></div>`,
+            foot: '<button class="btn" data-new>ملف جديد مؤقت</button><button class="btn primary" data-ok>ربط</button>',
+            onMount: (m, close) => {
+              m.querySelector('[data-ok]').addEventListener('click', () => { EM.H.erLink(e, m.querySelector('#lk-p').value); store.commit('er'); close(); this.render(el); });
+              m.querySelector('[data-new]').addEventListener('click', () => {
+                const p = { id: `EM-26-${EM.pad(store.state.patients.length + 31000, 6)}`, name: `مجهول الهوية ${e.id}`, gender: '—', dob: new Date(1985, 0, 1).toISOString(), nationalId: '', phone: '', governorate: '—', insurer: 'NONE', policy: '', blood: '—', allergies: [], alerts: ['هوية غير مؤكدة'], emergency: { name: '—', relation: '—', phone: '' }, consent: { sms: false, research: false }, createdAt: new Date().toISOString(), incomplete: true };
+                store.state.patients.unshift(p);
+                EM.H.erLink(e, p.id);
+                store.commit('er'); close(); ui.toast(`أُنشئ ملف مؤقت ${p.id} — يُستكمل لاحقاً من السجلات الطبية`, 'warn', 5000); this.render(el);
+              });
+            },
+          });
+        },
       });
     },
   };
@@ -77,9 +91,10 @@
       <div class="btn-group">
         ${e.status === 'waiting_triage' ? `<button class="btn sm primary" data-action="triage" data-id="${e.id}">فرز</button>` : ''}
         ${e.status === 'triaged' ? `<button class="btn sm primary" data-action="assign" data-id="${e.id}">استلام الحالة</button><button class="btn sm ghost" data-action="triage" data-id="${e.id}">إعادة فرز</button>` : ''}
-        ${e.status === 'in_assessment' ? `<button class="btn sm" data-action="orders" data-id="${e.id}">طلب تحاليل STAT</button><button class="btn sm primary" data-action="dispo" data-id="${e.id}">القرار</button>` : ''}
+        ${e.status === 'in_assessment' ? `<button class="btn sm" data-action="orders" data-id="${e.id}">الطلبات</button><button class="btn sm primary" data-action="dispo" data-id="${e.id}">القرار</button>` : ''}
         ${e.status === 'awaiting_results' ? `<button class="btn sm primary" data-action="dispo" data-id="${e.id}">القرار</button>` : ''}
-        ${e.status === 'disposition' ? `<span class="pill ok plain">${DISP[e.disposition]}</span><button class="btn sm ghost" data-action="close" data-id="${e.id}">إغلاق الزيارة</button>` : ''}
+        ${e.status === 'disposition' ? `<span class="pill ok plain">${DISP[e.disposition]}</span>${e.disposition === 'admit' ? '<a class="btn sm" href="#/beds">بانتظار سرير ←</a>' : ''}` : ''}
+        ${!e.patientId ? `<button class="btn sm ghost" data-action="link" data-id="${e.id}">ربط بملف</button>` : ''}
       </div>
     </article>`;
   }
@@ -114,6 +129,32 @@
     });
   }
 
+  function ordersModal(e, done) {
+    ui.modal({
+      title: `طلبات الطوارئ — ${store.patientName(e.patientId)}`,
+      body: `<fieldset class="orders"><legend>تحاليل STAT</legend>${EM.REF.labTests.map((t) => `<label class="check"><input type="checkbox" name="el" value="${t.code}" ${['TROP', 'CBC'].includes(t.code) && /صدر/.test(e.complaint) ? 'checked' : ''}> ${esc(t.name)}</label>`).join('')}</fieldset>
+        <fieldset class="orders"><legend>أشعة</legend>${EM.REF.imaging.map((t) => `<label class="check"><input type="checkbox" name="er" value="${t.code}"> ${esc(t.name)}</label>`).join('')}</fieldset>
+        <fieldset class="orders"><legend>علاج فوري</legend><select id="e-drug" class="input"><option value="">— بدون —</option>${EM.REF.drugs.map((d) => `<option value="${d.code}">${esc(d.name)}</option>`).join('')}</select><input id="e-dose" class="input" placeholder="الجرعة"></fieldset>
+        <p class="xs muted">الطلبات تذهب للمعمل والأشعة والصيدلية فوراً، وتُضاف مهمة سحب العينات للتمريض، وتُحسب الخدمات على الفاتورة عند إصدار النتائج.</p>`,
+      foot: '<button class="btn" data-close="1">إلغاء</button><button class="btn primary" data-ok>إرسال الطلبات</button>',
+      onMount(m, close) {
+        m.querySelector('[data-ok]').addEventListener('click', () => {
+          const labs = [...m.querySelectorAll('[name=el]:checked')].map((i) => i.value);
+          const rads = [...m.querySelectorAll('[name=er]:checked')].map((i) => i.value);
+          const drug = m.querySelector('#e-drug').value;
+          if (!labs.length && !rads.length && !drug) { ui.toast('اختر طلباً واحداً على الأقل', 'warn'); return; }
+          EM.H.orderLab(e.patientId, labs, { priority: 'STAT', source: 'er' });
+          EM.H.orderRad(e.patientId, rads, { indication: e.complaint, priority: 'STAT' });
+          if (drug) EM.H.prescribe(e.patientId, drug, { dose: m.querySelector('#e-dose').value || '—', route: 'وريد', location: 'الطوارئ' });
+          e.status = 'awaiting_results';
+          store.audit('طلبات من الطوارئ', 'er', e.id, { after: { labs, rads, drug } });
+          store.commit('er'); close();
+          ui.toast(`أُرسل: ${labs.length} تحليل، ${rads.length} أشعة${drug ? '، دواء' : ''}`, 'ok'); done();
+        });
+      },
+    });
+  }
+
   function quickReg(done) {
     ui.modal({
       title: 'تسجيل سريع — طوارئ',
@@ -129,9 +170,7 @@
           const c = m.querySelector('#q-c').value.trim();
           if (!c) { ui.toast('اكتب الشكوى الرئيسية', 'warn'); return; }
           const pid = m.querySelector('#q-p').value || null;
-          const e = { id: EM.uid('ER'), patientId: pid, tempName: pid ? null : (m.querySelector('#q-tmp').value.trim() || 'حالة غير معرّفة'), complaint: c, arrivedAt: new Date().toISOString(), level: null, status: 'waiting_triage', doctor: null, vitals: {}, bay: 'الاستقبال' };
-          store.state.er.push(e);
-          store.audit('تسجيل سريع بالطوارئ', 'er', e.id);
+          EM.H.erArrive({ pid, tempName: pid ? null : (m.querySelector('#q-tmp').value.trim() || 'حالة غير معرّفة'), complaint: c });
           store.commit('er'); close(); ui.toast('أُضيفت الحالة لعمود «بانتظار الفرز»', 'ok'); done();
         });
       },

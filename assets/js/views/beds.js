@@ -11,6 +11,8 @@
     render(el) {
       const s = store.state;
       const vs = ui.vstate('beds', { pick: null });
+      const pickReq = vs.pick ? s.bedRequests.find((r) => r.id === vs.pick) : null;
+      const best = pickReq ? EM.H.compatibleBeds(pickReq)[0] : null;
       const counts = ['occupied', 'available', 'cleaning', 'reserved', 'maintenance'].map((k) => [k, s.beds.filter((b) => b.status === k).length]);
       el.innerHTML = `<div class="page">
         ${ui.pageHead('إدارة الأسرّة', 'كل الأجنحة في لوحة واحدة. اختر طلب دخول ثم سريراً متاحاً لتخصيصه. الأسرّة المؤهلة للعزل معلّمة بإطار.')}
@@ -20,7 +22,7 @@
             ${EM.REF.wards.map((w) => { const beds = s.beds.filter((b) => b.ward === w.id); const occ = beds.filter((b) => b.status === 'occupied').length; return `
               <section class="panel ward">
                 <header class="panel-head"><div><h3>${esc(w.name)}</h3><span class="xs muted">${esc(w.gender)}</span></div><span class="small"><b class="num">${occ}</b>/<span class="num">${beds.length}</span> مشغول</span></header>
-                <div class="bed-grid">${beds.map((b) => bedTile(b, vs.pick)).join('')}</div>
+                <div class="bed-grid">${beds.map((b) => bedTile(b, vs.pick, best?.id === b.id)).join('')}</div>
               </section>`; }).join('')}
           </div>
           <aside class="stack sticky-col">
@@ -33,7 +35,7 @@
                   <div class="xs">${esc(r.reason)}</div>
                   ${r.isolation ? '<span class="pill par">يحتاج عزل</span>' : ''}
                   ${EM.minsSince(r.requestedAt) > 240 ? '<span class="pill bad">انتظار أكثر من 4 ساعات — مُصعّد</span>' : ''}
-                  <div class="btn-group" style="margin-top:8px">${vs.pick === r.id ? '<button class="btn sm" data-action="pick" data-id="">إلغاء الاختيار</button><span class="xs muted" style="align-self:center">اختر سريراً متاحاً من اللوحة</span>' : `<button class="btn sm primary" data-action="pick" data-id="${r.id}">تخصيص سرير</button>`}</div>
+                  <div class="btn-group" style="margin-top:8px">${vs.pick === r.id ? `<button class="btn sm" data-action="pick" data-id="">إلغاء</button>${best ? `<button class="btn sm primary" data-action="best">تخصيص الأنسب: ${esc(wardName(best.ward).split(' — ')[0])} ${esc(best.label)}</button>` : '<span class="xs v-bad" style="align-self:center">لا يوجد سرير مناسب متاح — راجع النظافة</span>'}` : `<button class="btn sm primary" data-action="pick" data-id="${r.id}">تخصيص سرير</button>`}</div>
                 </div></li>`).join('') || `<li>${ui.empty('لا توجد طلبات دخول', '', '', 'bed')}</li>`}</ul>
             </section>
           </aside>
@@ -41,6 +43,7 @@
 
       ui.bind(el, {
         pick: (b) => { vs.pick = b.dataset.id || null; this.render(el); },
+        best: () => assign(best, pickReq, () => { vs.pick = null; this.render(el); }),
         bed: (b) => {
           const bed = s.beds.find((x) => x.id === b.dataset.id);
           if (vs.pick) return assign(bed, s.bedRequests.find((r) => r.id === vs.pick), () => { vs.pick = null; this.render(el); });
@@ -50,37 +53,27 @@
     },
   };
 
-  function bedTile(b, picking) {
+  function bedTile(b, picking, isBest) {
     const p = b.patientId ? store.patient(b.patientId) : null;
     const can = picking && b.status === 'available';
     return `<button class="bed st-${b.status} ${isoCapable(b) ? 'iso' : ''} ${can ? 'pickable' : ''} ${b.dischargeReady ? 'dready' : ''}" data-action="bed" data-id="${b.id}" aria-label="سرير ${b.label} ${ui.statusText('bed', b.status)}">
       <span class="bed-no num">${esc(b.label)}</span>
       ${p ? `<span class="bed-pt">${esc(p.name.split(' ')[0])} ${esc(p.name.split(' ').slice(-1)[0])}</span><span class="bed-los num">${Math.max(1, Math.round(EM.minsSince(b.since) / 1440))} يوم</span>` : `<span class="bed-pt">${ui.statusText('bed', b.status)}</span>${b.status === 'cleaning' ? `<span class="bed-los num">${fmt.minutes(EM.minsSince(b.since))}</span>` : ''}`}
-      ${b.isolation ? '<span class="bed-flag">عزل</span>' : b.dischargeReady ? '<span class="bed-flag ok">خروج</span>' : ''}
+      ${isBest ? '<span class="bed-flag best">الأنسب</span>' : b.isolation ? '<span class="bed-flag">عزل</span>' : b.dischargeReady ? '<span class="bed-flag ok">خروج</span>' : ''}
     </button>`;
   }
 
   function assign(bed, req, done) {
     if (!store.guard('beds.assign', 'تخصيص سرير')) return;
-    const s = store.state;
-    if (bed.status !== 'available') { ui.toast('هذا السرير غير متاح. اختر سريراً أخضر', 'warn'); return; }
-    if (req.isolation && !isoCapable(bed)) { ui.toast('المريض يحتاج عزلاً — اختر سريراً مؤهلاً للعزل (بإطار)', 'bad'); return; }
-    // قفل تفاؤلي: يحاكي رفض التخصيص المتزامن لنفس السرير
     const version = bed.v || 0;
+    // قفل تفاؤلي: يحاكي رفض التخصيص المتزامن لنفس السرير
     setTimeout(() => {
-      if ((bed.v || 0) !== version || bed.status !== 'available') { ui.toast('تعارض: تم تخصيص السرير لمستخدم آخر للتو', 'bad'); return; }
-      bed.v = version + 1;
-      bed.status = 'occupied'; bed.patientId = req.patientId; bed.since = new Date().toISOString(); bed.isolation = req.isolation;
-      s.bedRequests = s.bedRequests.filter((r) => r.id !== req.id);
-      if (req.fromBed) {
-        const old = s.beds.find((x) => x.id === req.fromBed);
-        if (old) { old.status = 'cleaning'; old.patientId = null; old.since = new Date().toISOString(); old.isolation = false; }
-        store.audit('تأكيد استلام نقل داخلي', 'bed', req.fromBed, { after: bed.id });
-      }
-      store.audit('تخصيص سرير', 'bed', bed.id, { after: req.patientId });
-      store.startInstance('wf_admission', { bedAvailable: true }, req.patientId);
-      store.notify('info', 'تم تخصيص سرير', `${store.patientName(req.patientId)} — ${wardName(bed.ward)} سرير ${bed.label}`, '#/beds');
-      store.commit('beds'); ui.toast(`تم التخصيص: ${wardName(bed.ward)} — سرير ${bed.label}`, 'ok'); done();
+      if ((bed.v || 0) !== version) { ui.toast('تعارض: تم تخصيص السرير لمستخدم آخر للتو', 'bad'); return; }
+      const res = EM.H.assignBed(req, bed);
+      if (!res.ok) { ui.toast(res.msg, 'bad'); return; }
+      store.commit('beds');
+      ui.toast(`تم التخصيص: ${wardName(bed.ward)} — سرير ${bed.label}. أُرسلت مهام الدخول للتمريض وبدأ احتساب الإقامة`, 'ok', 5000);
+      done();
     }, 120);
   }
 
@@ -104,15 +97,16 @@
           const a = b.dataset.a;
           const before = bed.status;
           if (a === 'discharge') {
-            store.startInstance('wf_discharge', { type: 'normal' }, bed.patientId);
-            bed.status = 'cleaning'; bed.patientId = null; bed.since = new Date().toISOString(); bed.dischargeReady = false; bed.isolation = false;
-            store.notify('info', 'سرير بانتظار التنظيف', `${wardName(bed.ward)} سرير ${bed.label}`, '#/beds');
-          } else if (a === 'clean' || a === 'avail') { bed.status = 'available'; bed.since = null; }
+            EM.H.startDischarge(bed.patientId, 'normal');
+            store.commit('beds'); close(); location.hash = '#/discharge'; return;
+          } else if (a === 'clean') {
+            const job = store.state.housekeeping.find((j) => j.bedId === bed.id && j.status !== 'done');
+            if (job) EM.H.cleanDone(job); else { bed.status = 'available'; bed.since = null; }
+          } else if (a === 'avail') { bed.status = 'available'; bed.since = null; }
           else if (a === 'maint') bed.status = 'maintenance';
           else if (a === 'transfer') {
             store.state.bedRequests.unshift({ id: EM.uid('TRF'), patientId: bed.patientId, from: `نقل من ${wardName(bed.ward)}`, ward: bed.ward, reason: 'نقل داخلي — السرير الأصلي محجوز حتى الاستلام', requestedAt: new Date().toISOString(), priority: 'عاجل', isolation: bed.isolation, fromBed: bed.id });
-            bed.status = 'reserved';
-            ui.toast('أُنشئ طلب نقل. السرير الحالي محجوز حتى تأكيد الاستلام', 'info');
+            ui.toast('أُنشئ طلب نقل. السرير الحالي يبقى للمريض حتى تأكيد الاستلام', 'info');
           }
           store.audit(`تغيير حالة سرير: ${ui.statusText('bed', bed.status)}`, 'bed', bed.id, { before, after: bed.status });
           store.commit('beds'); close(); done();

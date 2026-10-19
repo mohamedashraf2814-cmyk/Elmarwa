@@ -24,7 +24,7 @@
     if (raw) {
       try { store.state = JSON.parse(raw); } catch { store.state = null; }
     }
-    if (!store.state || store.state.schema !== 3) seedAll();
+    if (!store.state || store.state.schema !== 4) seedAll();
     // المخزون جزء من الحالة المحفوظة؛ المراجع تشير لنفس المصفوفة
     EM.REF.drugs = store.state.drugs;
     if (store.state.departments) EM.REF.departments = store.state.departments;
@@ -41,7 +41,8 @@
 
   function seedAll() {
     const st = EM.seed();
-    st.schema = 3;
+    st.schema = 4;
+    EM.seedExtra(st);
     st.drugs = EM.clone(EM.DRUGS_SEED);
     EM.REF.drugs = st.drugs;
     st.workflows = EM.WF_TEMPLATES.map((t) => {
@@ -142,6 +143,22 @@
     store.audit(`محاولة غير مصرّح بها: ${actionLabel}`, 'security', perm, { result: 'denied' });
     EM.ui.toast(`لا تملك صلاحية «${actionLabel}». الدور الحالي: ${store.role()?.name || '—'}`, 'bad');
     return false;
+  };
+
+  /** فصل المهام: الموظف العادي يُمنع، والمدير العام يمكنه الاعتماد الاستثنائي بسبب موثق */
+  store.isOwner = () => store.session?.role === 'owner';
+  store.breakGlass = function (label, onOk) {
+    if (!store.isOwner()) {
+      store.audit(`رفض: ${label}`, 'security', 'sod', { result: 'denied' });
+      EM.ui.toast(`فصل المهام: ${label}`, 'bad');
+      return;
+    }
+    EM.ui.confirm({
+      title: 'اعتماد استثنائي',
+      message: `القاعدة: ${EM.esc(label)}. بصفتك المدير العام يمكنك التجاوز، وسيُسجل الإجراء في التدقيق كاعتماد استثنائي مع السبب.`,
+      reason: true, confirm: 'اعتماد استثنائي',
+      onOk: (r) => { store.audit(`اعتماد استثنائي: ${label}`, 'security', 'break-glass', { reason: r }); onOk(r); },
+    });
   };
 
   store.audit = function (action, entity, entityId, extra = {}) {
@@ -256,7 +273,7 @@
     }
   }
 
-  store.completeTask = function (instId, tokenId, outcome, note) {
+  store.completeTask = function (instId, tokenId, outcome, note, opts) {
     const inst = store.state.instances.find((i) => i.id === instId);
     if (!inst || inst.status !== 'running') return false;
     const def = store.versionDef(inst.workflowId, inst.version);
@@ -269,9 +286,8 @@
       return false;
     }
     if (n.type === 'approval') {
-      if (n.config?.sod && inst.requestedBy && inst.requestedBy === store.user()?.id) {
-        EM.ui.toast('فصل المهام: لا يمكنك اعتماد طلب قدمته بنفسك', 'bad');
-        store.audit('رفض: اعتماد ذاتي ممنوع', 'workflow_task', instId, { result: 'denied' });
+      if (n.config?.sod && inst.requestedBy && inst.requestedBy === store.user()?.id && !opts?.override) {
+        store.breakGlass('لا يعتمد مقدم الطلب طلبه', () => store.completeTask(instId, tokenId, outcome, note, { override: true }));
         return false;
       }
       inst.outcomes[n.id] = outcome || 'approved';

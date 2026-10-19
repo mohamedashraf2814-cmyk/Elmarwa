@@ -79,6 +79,21 @@
         </a>`).join('')}</div>`;
   }
 
+  /* رحلة «مريض العرض» عبر الأقسام — توضح ترابط النظام في لمحة */
+  function featured() {
+    const s = store.state;
+    const p = store.patient(s.featuredPatient);
+    if (!p) return '';
+    const loc = EM.H.locate(p.id);
+    const steps = EM.H.journey(p.id);
+    return `<section class="panel feat">
+      <div class="feat-head"><div><span class="xs muted">تتبّع رحلة مريض عبر الأقسام</span><h2><a href="#/patients/${esc(p.id)}" style="color:inherit">${esc(p.name)}</a></h2>
+        <span class="small muted">${fmt.age(p.dob)} سنة · الآن في <b>${esc(loc.label)}</b> · المستحق ${fmt.money(EM.H.balance(p.id))}</span></div>
+        <a class="btn" href="#/patients/${esc(p.id)}">${icon('user', 'sm')} فتح جواز المريض</a></div>
+      <ol class="journey">${steps.map((j) => `<li class="j-${j.state}"><span class="j-dot"></span><b>${esc(j.dept)}</b><span>${esc(j.label)}</span><time>${fmt.time(j.at)}</time></li>`).join('')}</ol>
+    </section>`;
+  }
+
   EM.views.dashboard = {
     title: () => 'لوحة القيادة',
     render(el) {
@@ -125,6 +140,8 @@
           <div class="river-body">${river(st)}</div>
         </section>
 
+        ${featured()}
+
         <div class="grid c4">
           ${ui.kpi('إشغال الأسرّة', `${Math.round((occ / usable) * 100)}%`, `${occ} من ${usable} سريراً صالحاً`, occ / usable > 0.85 ? 'down' : '')}
           ${ui.kpi('متوسط الانتظار بالطوارئ', fmt.minutes(avgWait), `${erWaits.length} حالة نشطة`, avgWait > 60 ? 'down' : 'up')}
@@ -140,10 +157,9 @@
                 <div class="load-row"><span>${esc(n)}</span><div class="meter ${p > 85 ? 'bad' : p > 65 ? 'warn' : ''}"><span style="width:${p}%"></span></div><b class="num">${v}<small class="muted"> / ${cap}</small></b></div>`; }).join('')}
             </div>
           </section>
-          <section class="panel">
-            <div class="panel-head"><h2>يحتاج انتباهك</h2><span class="badge-count">${alerts.length}</span></div>
-            <ul class="list alert-list">${alerts.slice(0, 7).map((a) => `
-              <li><span class="al-bar ${a.k}"></span><a class="grow" href="${a.link}" style="color:inherit"><b class="small" style="font-weight:500">${esc(a.t)}</b><div class="xs muted">${esc(a.b)}</div></a>${a.at ? `<span class="xs muted">${fmt.ago(a.at)}</span>` : ''}</li>`).join('') || `<li>${ui.empty('لا توجد تنبيهات')}</li>`}</ul>
+          <section class="panel assist-panel">
+            <div class="panel-head"><h2>${icon('sparkle', 'sm')} مساعد التشغيل</h2><span class="small muted">اقتراحات من حالة كل الأقسام الآن</span></div>
+            ${EM.insightList(EM.insights(), 6)}
           </section>
         </div>
 
@@ -177,7 +193,7 @@
     render(el) {
       const role = store.session.role;
       const all = store.openTasks();
-      const mine = all.filter((t) => t.node.config.role === role);
+      const mine = store.isOwner() ? all : all.filter((t) => t.node.config.role === role);
       const vs = ui.vstate('tasks', { scope: 'mine' });
       const list = vs.scope === 'mine' ? mine : all;
       el.innerHTML = `<div class="page">

@@ -56,12 +56,15 @@
           const perm = to === 'verified' ? 'lab.verify' : 'lab.process';
           if (!store.guard(perm, to === 'verified' ? 'اعتماد نتيجة' : 'تشغيل العينات')) return;
           if (to === 'resulted') return resultModal(x, () => this.render(el));
-          if (to === 'verified' && x.resultedBy === store.user().id) { ui.toast('فصل المهام: النتيجة تُعتمد من شخص غير الذي أدخلها', 'bad'); return; }
-          const before = x.stage;
-          x.stage = to; x.rejected = null;
-          if (to === 'verified' && x.critical) store.notify('bad', 'نتيجة حرجة', `${EM.REF.labTests.find((t) => t.code === x.test).name} — ${store.patientName(x.patientId)}`, '#/lab');
-          store.audit(`نقل طلب معمل إلى ${ui.statusText('lab', to)}`, 'lab', x.id, { before, after: to });
-          store.commit('lab'); this.render(el);
+          const apply = () => {
+            const before = x.stage;
+            x.stage = to; x.rejected = null;
+            if (to === 'verified') EM.H.labReleased(x);
+            store.audit(`نقل طلب معمل إلى ${ui.statusText('lab', to)}`, 'lab', x.id, { before, after: to });
+            store.commit('lab'); this.render(el);
+          };
+          if (to === 'verified' && x.resultedBy === store.user().id) return store.breakGlass('النتيجة تُعتمد من شخص غير الذي أدخلها', apply);
+          apply();
         },
         reject: (b) => {
           if (!store.guard('lab.process', 'رفض عينة')) return;
@@ -167,7 +170,7 @@
           if (!['reported', 'verified'].includes(to) && !store.guard('rad.view', 'تشغيل الأشعة')) return;
           const go = (extra) => {
             const before = x.stage; x.stage = to; Object.assign(x, extra || {});
-            if (to === 'verified' && x.critical) store.notify('bad', 'نتيجة أشعة حرجة', `${store.patientName(x.patientId)} — بانتظار إقرار الطبيب`, '#/radiology');
+            if (to === 'verified') EM.H.radReleased(x);
             store.audit(`نقل طلب أشعة إلى ${ui.statusText('rad', to)}`, 'rad', x.id, { before, after: to });
             store.commit('rad'); this.render(el);
           };

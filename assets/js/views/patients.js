@@ -129,6 +129,103 @@
   }
   EM.patientTimeline = timeline;
 
+  /* ---------- جواز المريض: أين هو الآن، وماذا ينتظره، وكل الإجراءات عبر الأقسام ---------- */
+  const orderCount = (pid) => { const s = store.state; return s.lab.filter((x) => x.patientId === pid).length + s.rad.filter((x) => x.patientId === pid).length + s.rx.filter((x) => x.patientId === pid).length; };
+  function passport(p) {
+    const H = EM.H;
+    const s = store.state;
+    const loc = H.locate(p.id);
+    const enc = H.encounter(p.id);
+    const pendLab = s.lab.filter((x) => x.patientId === p.id && x.stage !== 'verified').length;
+    const pendRad = s.rad.filter((x) => x.patientId === p.id && x.stage !== 'verified').length;
+    const pendRx = s.rx.filter((x) => x.patientId === p.id && !['dispensed', 'cancelled'].includes(x.status)).length;
+    const crit = s.lab.filter((x) => x.patientId === p.id && x.critical && !x.ackBy).length;
+    const next = s.appointments.filter((a) => a.patientId === p.id && a.status === 'booked' && new Date(a.at) > new Date()).sort((a, b) => a.at.localeCompare(b.at))[0];
+    const dis = s.discharges.find((d) => d.patientId === p.id && d.status === 'in_progress');
+    const req = s.bedRequests.find((r) => r.patientId === p.id);
+    const journey = H.journey(p.id);
+    const can = (perm) => store.can(perm);
+    return `<section class="panel passport">
+      <div class="pp-grid">
+        <div class="pp-cell pp-loc loc-${loc.kind}"><small>مكانه الآن</small><b>${loc.link ? `<a href="${loc.link}">${esc(loc.label)}</a>` : esc(loc.label)}</b>${enc ? `<span class="xs">زيارة <span class="num">${esc(enc.id)}</span> منذ ${EM.fmt.minutes(EM.minsSince(enc.startedAt))}</span>` : '<span class="xs">لا توجد زيارة مفتوحة</span>'}</div>
+        <div class="pp-cell"><small>طلبات قيد التنفيذ</small><b class="num">${pendLab + pendRad + pendRx}</b><span class="xs">${pendLab} تحليل · ${pendRad} أشعة · ${pendRx} دواء</span></div>
+        <div class="pp-cell ${crit ? 'pp-bad' : ''}"><small>نتائج حرجة بلا إقرار</small><b class="num">${crit}</b><span class="xs">${crit ? '<a href="#/lab">إقرار الآن</a>' : 'لا يوجد'}</span></div>
+        <div class="pp-cell"><small>المستحق على المريض</small><b class="num">${EM.fmt.money(H.balance(p.id))}</b><span class="xs">${esc(EM.REF.insurers.find((i) => i.id === p.insurer)?.name || '')}</span></div>
+        <div class="pp-cell"><small>الخطوة التالية</small><b class="small">${dis ? 'إجراءات خروج جارية' : req ? `بانتظار سرير — ${esc(EM.H.wardName(req.ward).split(' — ')[0])}` : next ? `موعد ${esc(EM.CLINICS.find((c) => c.id === next.clinic).specialty)}` : '—'}</b><span class="xs">${next && !dis && !req ? EM.fmt.dateTime(next.at) : ''}</span></div>
+      </div>
+      ${journey.length ? `<ol class="journey" aria-label="رحلة المريض عبر الأقسام">${journey.map((j) => `<li class="j-${j.state}"><span class="j-dot"></span><b>${esc(j.dept)}</b><span>${esc(j.label)}</span><time>${EM.fmt.time(j.at)}</time></li>`).join('')}</ol>` : ''}
+      <div class="pp-actions">
+        ${can('orders.create') ? `<button class="btn sm" data-action="qa" data-q="lab">${icon('flask', 'sm')} طلب تحاليل</button><button class="btn sm" data-action="qa" data-q="rad">${icon('scan', 'sm')} طلب أشعة</button><button class="btn sm" data-action="qa" data-q="rx">${icon('pill', 'sm')} وصفة</button>` : ''}
+        ${can('er.view') && loc.kind === 'out' ? `<button class="btn sm" data-action="qa" data-q="er">${icon('siren', 'sm')} وصول للطوارئ</button>` : ''}
+        ${can('beds.assign') && !loc.bed && !req ? `<button class="btn sm" data-action="qa" data-q="admit">${icon('bed', 'sm')} طلب دخول</button>` : ''}
+        ${can('beds.assign') && loc.bed && !dis ? `<button class="btn sm" data-action="qa" data-q="discharge">${icon('logout', 'sm')} بدء الخروج</button>` : ''}
+        ${can('appointments.manage') ? `<button class="btn sm" data-action="qa" data-q="appt">${icon('calendar', 'sm')} حجز موعد</button>` : ''}
+        ${can('dashboard.view') ? `<button class="btn sm ghost" data-action="qa" data-q="incident">${icon('alert', 'sm')} بلاغ سلامة</button>` : ''}
+      </div>
+    </section>`;
+  }
+
+  function ordersTab(pid) {
+    const s = store.state;
+    const rows = [
+      ...s.lab.filter((x) => x.patientId === pid).map((x) => ({ at: x.orderedAt, kind: 'تحليل', name: EM.REF.labTests.find((t) => t.code === x.test).name, st: ui.pill('lab', x.stage), res: x.result ? `<b class="num ${x.critical ? 'v-bad' : ''}">${esc(x.result.value)}</b> <span class="xs muted">${esc(x.result.unit)} (${esc(x.result.ref)})</span>${x.critical ? (x.ackBy ? ' <span class="pill ok">أُقرت</span>' : ' <span class="pill bad">حرجة</span>') : ''}` : '—', link: '#/lab' })),
+      ...s.rad.filter((x) => x.patientId === pid).map((x) => ({ at: x.orderedAt, kind: 'أشعة', name: EM.REF.imaging.find((t) => t.code === x.study).name, st: ui.pill('rad', x.stage), res: esc(x.report || '—'), link: '#/radiology' })),
+      ...s.rx.filter((x) => x.patientId === pid).map((x) => ({ at: x.at, kind: 'دواء', name: EM.REF.drugs.find((d) => d.code === x.drug).name, st: ui.pill('rx', x.status), res: `${esc(x.dose)} ${esc(x.route)} ${esc(x.freq)}${x.alert ? ` <span class="pill bad">${esc(x.alert.kind)}</span>` : ''}`, link: '#/pharmacy' })),
+    ].sort((a, b) => b.at.localeCompare(a.at));
+    return rows.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>الوقت</th><th>النوع</th><th>الطلب</th><th>الحالة</th><th>النتيجة / التفاصيل</th><th></th></tr></thead><tbody>${rows.map((r) => `<tr><td class="small">${fmt.dateTime(r.at)}</td><td class="small">${r.kind}</td><td class="small">${esc(r.name)}</td><td>${r.st}</td><td class="small">${r.res}</td><td class="actions"><a class="btn sm ghost" href="${r.link}">القسم</a></td></tr>`).join('')}</tbody></table></div>` : ui.empty('لا توجد طلبات لهذا المريض');
+  }
+
+  function billingTab(pid) {
+    const inv = store.state.invoices.filter((i) => i.patientId === pid);
+    if (!inv.length) return ui.empty('لا توجد فواتير بعد', 'تُنشأ الفاتورة تلقائياً مع أول خدمة يحصل عليها المريض.');
+    return inv.map((i) => `<div class="inv-block"><div class="row between"><b class="num">${esc(i.id)}</b>${ui.pill('inv', i.status)}</div>
+      <table class="tbl"><tbody>${i.items.map((it) => `<tr><td class="small">${esc(it.name)}</td><td class="xs muted">${esc(it.source || '')}</td><td class="num">${it.qty} × ${fmt.money(it.price)}</td></tr>`).join('')}</tbody></table>
+      <div class="row between small"><span>الإجمالي <b class="num">${fmt.money(i.total)}</b> · التأمين <b class="num">${fmt.money(i.insShare)}</b></span><span>على المريض <b class="num">${fmt.money(i.patientShare)}</b> · مدفوع <b class="num">${fmt.money(i.paid)}</b></span></div></div>`).join('');
+  }
+
+  function quickAction(q, p, done) {
+    const H = EM.H;
+    const fin = (msg) => { store.commit('patient'); ui.toast(msg, 'ok', 4500); done(); };
+    const pick = (title, items, cb, extra = '') => ui.modal({
+      title, body: `<div class="orders" style="border:0;padding:0">${items.map(([v, t]) => `<label class="check"><input type="checkbox" value="${esc(v)}"> ${esc(t)}</label>`).join('')}</div>${extra}`,
+      foot: '<button class="btn" data-close="1">إلغاء</button><button class="btn primary" data-ok>إرسال</button>',
+      onMount: (m, close) => m.querySelector('[data-ok]').addEventListener('click', () => { const v = [...m.querySelectorAll('input[type=checkbox]:checked')].map((i) => i.value); if (!v.length) { ui.toast('اختر عنصراً واحداً على الأقل', 'warn'); return; } close(); cb(v, m); }),
+    });
+    if (q === 'lab') pick('طلب تحاليل', EM.REF.labTests.map((t) => [t.code, t.name]), (v, m) => { H.orderLab(p.id, v, { priority: m.querySelector('#pr').value, source: H.locate(p.id).dept || 'opd' }); fin(`أُرسل ${v.length} تحليل للمعمل ومهمة سحب العينات للتمريض`); }, `<div class="field"><label for="pr">الأولوية</label><select id="pr" class="input"><option>روتيني</option><option>عاجل</option><option>STAT</option></select></div>`);
+    if (q === 'rad') pick('طلب أشعة', EM.REF.imaging.map((t) => [t.code, t.name]), (v, m) => { H.orderRad(p.id, v, { indication: m.querySelector('#ind').value || 'تقييم' }); fin('أُرسل الطلب لقسم الأشعة'); }, `<div class="field"><label for="ind">الدواعي السريرية</label><input id="ind" class="input"></div>`);
+    if (q === 'rx') ui.modal({
+      title: 'وصفة جديدة', body: `<div class="form-grid"><div class="field full"><label for="qd">الدواء</label><select id="qd" class="input">${EM.REF.drugs.map((d) => `<option value="${d.code}">${esc(d.name)}${d.controlled ? ' (مراقب)' : ''}</option>`).join('')}</select></div><div class="field"><label for="qdo">الجرعة</label><input id="qdo" class="input"></div><div class="field"><label for="qf">التكرار</label><input id="qf" class="input" placeholder="كل 8 ساعات"></div><div class="field full" id="qwarn"></div></div>`,
+      foot: '<button class="btn" data-close="1">إلغاء</button><button class="btn primary" data-ok>إرسال للصيدلية</button>',
+      onMount: (m, close) => {
+        const chk = () => { const c = H.allergyConflict(p.id, m.querySelector('#qd').value); m.querySelector('#qwarn').innerHTML = c ? `<div class="callout bad">${icon('alert', 'sm')}<div><span class="small">${esc(c)}. التنبيه آلي وليس قراراً سريرياً — للمتابعة اكتب تبريراً وستُعلّق الوصفة لمراجعة الصيدلي.</span><input id="qj" class="input" style="margin-top:6px" placeholder="التبرير"></div></div>` : ''; };
+        m.querySelector('#qd').addEventListener('change', chk); chk();
+        m.querySelector('[data-ok]').addEventListener('click', () => {
+          const j = m.querySelector('#qj');
+          if (j && !j.value.trim()) { ui.toast('التبرير إلزامي لتجاوز تنبيه الحساسية', 'warn'); return; }
+          H.prescribe(p.id, m.querySelector('#qd').value, { dose: m.querySelector('#qdo').value || '—', freq: m.querySelector('#qf').value, justification: j?.value.trim() || null });
+          close(); fin(j ? 'أُرسلت الوصفة معلقة لمراجعة الصيدلي' : 'أُرسلت الوصفة للصيدلية');
+        });
+      },
+    });
+    if (q === 'er') { H.erArrive({ pid: p.id, complaint: 'وصول للطوارئ' }); fin('أُضيف المريض لعمود «بانتظار الفرز» وفُتحت زيارة طوارئ'); }
+    if (q === 'admit') ui.modal({
+      title: 'طلب دخول', body: `<div class="form-grid"><div class="field"><label for="aw">الجناح</label><select id="aw" class="input">${ui.options(EM.REF.wards.map((w) => [w.id, w.name]), 'W-MED')}</select></div><div class="field"><label for="ap">الأولوية</label><select id="ap" class="input"><option>عاجل</option><option>حرج</option><option>مجدول</option></select></div><div class="field full"><label for="ar">السبب</label><input id="ar" class="input"></div><label class="check"><input type="checkbox" id="ai"> يحتاج عزلاً</label></div>`,
+      foot: '<button class="btn" data-close="1">إلغاء</button><button class="btn primary" data-ok>إرسال الطلب</button>',
+      onMount: (m, close) => m.querySelector('[data-ok]').addEventListener('click', () => { H.requestAdmission(p.id, { ward: m.querySelector('#aw').value, priority: m.querySelector('#ap').value, reason: m.querySelector('#ar').value || 'دخول', from: H.locate(p.id).label.split(' — ')[0], isolation: m.querySelector('#ai').checked }); close(); fin('أُرسل طلب الدخول للوحة الأسرّة'); }),
+    });
+    if (q === 'discharge') { H.startDischarge(p.id, 'normal'); store.commit('patient'); location.hash = '#/discharge'; }
+    if (q === 'appt') ui.modal({
+      title: 'حجز موعد', body: `<div class="form-grid"><div class="field"><label for="ac">العيادة</label><select id="ac" class="input">${EM.CLINICS.map((c) => `<option value="${c.id}">${esc(c.specialty)} — ${esc(c.name)}</option>`).join('')}</select></div><div class="field"><label for="ad">بعد (أيام)</label><input id="ad" type="number" class="input num" value="7" min="0"></div></div>`,
+      foot: '<button class="btn" data-close="1">إلغاء</button><button class="btn primary" data-ok>حجز</button>',
+      onMount: (m, close) => m.querySelector('[data-ok]').addEventListener('click', () => { H.followUp(p.id, m.querySelector('#ac').value, Number(m.querySelector('#ad').value) || 0); close(); fin('تم حجز الموعد'); }),
+    });
+    if (q === 'incident') ui.modal({
+      title: 'بلاغ سلامة مرتبط بالمريض', body: `<div class="field"><label for="ik">النوع</label><select id="ik" class="input">${['سقوط مريض', 'خطأ دوائي', 'عرض جانبي لدواء', 'خطأ في التعريف بالمريض', 'أخرى'].map((x) => `<option>${x}</option>`).join('')}</select></div><div class="field"><label for="it">ماذا حدث؟</label><textarea id="it" class="input"></textarea></div>`,
+      foot: '<button class="btn" data-close="1">إلغاء</button><button class="btn primary" data-ok>إرسال</button>',
+      onMount: (m, close) => m.querySelector('[data-ok]').addEventListener('click', () => { const t = m.querySelector('#it').value.trim(); if (!t) { ui.toast('اكتب ما حدث', 'warn'); return; } H.reportIncident({ kind: m.querySelector('#ik').value, severity: 'بسيط', location: H.locate(p.id).label, text: t, pid: p.id }); close(); fin('أُرسل البلاغ للجودة'); }),
+    });
+  }
+
   EM.views.patient = {
     title: (p) => store.patientName(p.id),
     render(el, params) {
@@ -165,10 +262,13 @@
             ${store.can('clinic.consult') ? `<a class="btn primary" href="#/clinic?p=${esc(p.id)}">${icon('stethoscope')} بدء كشف</a>` : ''}
           </div>
         </section>
+        ${passport(p)}
         <section class="panel">
-          <div class="tabs" role="tablist">${[['timeline', 'الخط الزمني'], ['info', 'البيانات والموافقات'], ['flows', 'مسارات العمل']].map(([k, t]) => `<button role="tab" aria-selected="${vs.tab === k}" class="${vs.tab === k ? 'on' : ''}" data-action="tab" data-t="${k}">${t}</button>`).join('')}</div>
+          <div class="tabs" role="tablist">${[['timeline', 'الخط الزمني'], ['orders', `الطلبات والنتائج (${orderCount(p.id)})`], ['billing', 'الحساب'], ['info', 'البيانات والموافقات'], ['flows', 'مسارات العمل']].map(([k, t]) => `<button role="tab" aria-selected="${vs.tab === k}" class="${vs.tab === k ? 'on' : ''}" data-action="tab" data-t="${k}">${t}</button>`).join('')}</div>
           <div class="panel-body">${vs.tab === 'timeline' ? (tl.length ? `<ol class="timeline">${tl.map((e) => `
               <li class="tl-${e.kind}"><span class="tl-ic">${icon(e.ic, 'sm')}</span><div class="grow"><div class="row between"><b>${esc(e.title)}</b><span class="xs muted">${fmt.dateTime(e.at)}</span></div><div class="small muted">${esc(e.body)}</div></div>${e.link ? `<a class="btn sm ghost" href="${e.link}">فتح</a>` : ''}</li>`).join('')}</ol>` : ui.empty('لا توجد أحداث بعد'))
+            : vs.tab === 'orders' ? ordersTab(p.id)
+            : vs.tab === 'billing' ? billingTab(p.id)
             : vs.tab === 'info' ? `
               <div class="grid c2">
                 <dl class="dl">
@@ -191,6 +291,7 @@
         </section></div>`;
       ui.bind(el, {
         tab: (b) => { vs.tab = b.dataset.t; this.render(el, params); },
+        qa: (b) => quickAction(b.dataset.q, p, () => this.render(el, params)),
         reveal: () => ui.confirm({ title: 'إظهار بيانات حساسة', message: 'سيتم تسجيل هذا الإجراء في سجل التدقيق مع السبب.', reason: true, confirm: 'إظهار', onOk: (r) => { store.audit('إظهار الرقم القومي', 'patient', p.id, { reason: r }); vs.reveal = true; this.render(el, params); } }),
         edit: () => ui.modal({
           title: 'تصحيح البيانات الديموغرافية',

@@ -66,20 +66,11 @@
           if (!store.guard('pharmacy.dispense', 'صرف دواء')) return;
           const r = s.rx.find((x) => x.id === b.dataset.id);
           const d = drug(r.drug);
-          const qty = 1;
-          if (d.stock < qty) {
-            r.status = 'waiting_stock';
-            s.purchaseRequests.unshift({ id: EM.uid('PR'), item: d.code, qty: d.min * 2, status: 'بانتظار الاعتماد', by: 'system', at: new Date().toISOString() });
-            store.notify('warn', 'نقص مخزون', `${d.name} غير متوفر — أُنشئ طلب شراء`, '#/inventory');
-            store.audit('تعليق صرف لنقص المخزون', 'rx', r.id);
-            store.commit('rx'); this.render(el); return;
-          }
           const finish = (witness) => {
-            d.stock -= qty;
-            s.stockMoves.unshift({ id: EM.uid('SM'), item: d.code, type: d.controlled ? 'صرف (مخدر — توقيع مزدوج)' : 'صرف', qty: -qty, by: store.user().id, at: new Date().toISOString(), ref: r.id, witness });
-            r.status = 'dispensed';
-            store.audit('صرف دواء', 'rx', r.id, { after: { stock: d.stock }, reason: witness ? `شاهد: ${witness}` : null });
-            store.commit('rx'); ui.toast('تم الصرف وخصم المخزون', 'ok'); this.render(el);
+            const res = EM.H.dispense(r, witness);
+            store.commit('rx');
+            ui.toast(res.ok ? 'تم الصرف، خُصم المخزون، وأُرسلت مهمة الإعطاء للتمريض' : 'الكمية غير متوفرة — أُنشئ طلب شراء وعُلّقت الوصفة', res.ok ? 'ok' : 'warn', 4500);
+            this.render(el);
           };
           if (d.controlled) {
             ui.modal({

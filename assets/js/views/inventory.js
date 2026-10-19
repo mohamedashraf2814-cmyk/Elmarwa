@@ -38,8 +38,9 @@
         approve: (b) => {
           const r = s.purchaseRequests.find((x) => x.id === b.dataset.id);
           if (!store.can('inventory.manage') && !store.can('workflows.publish')) { store.guard('inventory.manage', 'اعتماد طلب شراء'); return; }
-          if (r.by === store.user().id) { ui.toast('فصل المهام: لا يعتمد مقدم الطلب طلبه', 'bad'); store.audit('رفض: اعتماد ذاتي لطلب شراء', 'purchase', r.id, { result: 'denied' }); return; }
-          r.status = 'معتمد — لدى المورد'; store.audit('اعتماد طلب شراء', 'purchase', r.id); store.commit('inventory'); this.render(el);
+          const ok = () => { r.status = 'معتمد — لدى المورد'; store.audit('اعتماد طلب شراء', 'purchase', r.id); store.commit('inventory'); this.render(el); };
+          if (r.by === store.user().id) { store.breakGlass('لا يعتمد مقدم طلب الشراء طلبه', ok); return; }
+          ok();
         },
         receive: (b) => {
           if (!store.guard('inventory.manage', 'استلام مخزون')) return;

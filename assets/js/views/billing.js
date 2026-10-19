@@ -36,8 +36,8 @@
           const r = s.refunds.find((x) => x.id === b.dataset.id);
           const ok = b.dataset.ok === '1';
           if (!store.guard('billing.refund.approve', 'اعتماد الاسترداد')) return;
-          if (r.requestedBy === store.user().id) { store.audit('رفض: اعتماد ذاتي لاسترداد', 'refund', r.id, { result: 'denied' }); ui.toast('فصل المهام: لا يمكنك اعتماد طلب قدمته بنفسك', 'bad'); return; }
-          if (ok && r.amount > 5000 && store.session.role !== 'hadmin') { ui.toast('المبالغ أكبر من 5,000 ج.م تحتاج اعتماد مدير المستشفى', 'warn'); return; }
+          if (r.requestedBy === store.user().id && !b.dataset.bg) { store.breakGlass('لا يعتمد مقدم طلب الاسترداد طلبه', () => { b.dataset.bg = '1'; b.click(); delete b.dataset.bg; }); return; }
+          if (ok && r.amount > 5000 && !['hadmin', 'owner'].includes(store.session.role)) { ui.toast('المبالغ أكبر من 5,000 ج.م تحتاج اعتماد مدير المستشفى', 'warn'); return; }
           ui.confirm({ title: ok ? 'اعتماد الاسترداد' : 'رفض الاسترداد', message: ok ? `سيتم ترحيل قيد عكسي بمبلغ ${fmt.money(r.amount)}.` : 'سبب الرفض إلزامي.', reason: !ok, danger: !ok, confirm: ok ? 'اعتماد' : 'رفض', onOk: (why) => {
             r.status = ok ? 'approved' : 'rejected'; r.decidedBy = store.user().id; r.reason2 = why;
             if (ok) { const inv = s.invoices.find((i) => i.id === r.invoiceId); inv.adjustments.push({ id: EM.uid('ADJ'), amount: -r.amount, kind: 'استرداد', at: new Date().toISOString(), by: store.user().id, ref: r.id }); }

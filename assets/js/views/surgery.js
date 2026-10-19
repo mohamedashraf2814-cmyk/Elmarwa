@@ -63,7 +63,7 @@
           if (missing.length) { ui.toast(`أكمل أولاً: ${missing.join('، ')}`, 'bad', 5000); return; }
           const before = x.status;
           x.status = next;
-          if (next === 'done') store.notify('info', 'انتهت عملية', `${x.procedure} — قرار النقل للقسم أو العناية`, '#/surgery');
+          if (next === 'done') { EM.H.surgeryDone(x); store.notify('info', 'انتهت عملية', `${x.procedure} — احتُسبت رسوم الغرفة وأُرسل طلب سرير للجراحة`, '#/beds'); }
           store.audit(`تحديث حالة العملية إلى ${ui.statusText('or', next)}`, 'surgery', x.id, { before, after: next });
           store.commit('surgery'); close(); done();
         });

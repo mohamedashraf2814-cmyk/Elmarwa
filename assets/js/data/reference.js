@@ -80,6 +80,12 @@
     ['admin.departments', 'إدارة الأقسام', 'الإدارة'],
     ['audit.view', 'سجل التدقيق والأمان', 'الإدارة'],
     ['data.export', 'تصدير البيانات', 'الإدارة'],
+    ['discharge.manage', 'إدارة إجراءات الخروج', 'الإقامة'],
+    ['housekeeping.manage', 'النظافة وتجهيز الأسرّة', 'الخدمات المساندة'],
+    ['hr.manage', 'الموارد البشرية والمناوبات', 'الخدمات المساندة'],
+    ['biomed.manage', 'صيانة الأجهزة الطبية', 'الخدمات المساندة'],
+    ['records.manage', 'السجلات الطبية', 'الخدمات المساندة'],
+    ['quality.manage', 'الجودة وبلاغات السلامة', 'الخدمات المساندة'],
   ].map(([id, name, group]) => ({ id, name, group }));
 
   const ALL = EM.REF.permissions.map((p) => p.id);
@@ -87,34 +93,37 @@
 
   /* ---------- الأدوار (23 دوراً) ---------- */
   EM.REF.roles = [
+    // الحساب الموحد: شخص واحد يدير كل الأقسام. فصل المهام يبقى مفعلاً لكنه يُتجاوز باعتماد استثنائي موثق.
+    { id: 'owner', name: 'المدير العام', perms: ALL, mfa: true },
     // مدير النظام يدير الإعدادات والمسارات والأمان فقط — بلا وصول لملفات المرضى أو قرارات سريرية أو مالية
     { id: 'sysadmin', name: 'مدير النظام', perms: [...base, 'workflows.view', 'workflows.design', 'workflows.publish', 'workflows.monitor', 'workflows.intervene', 'scenarios.view', 'admin.roles', 'admin.departments', 'audit.view', 'data.export', 'inventory.view'], mfa: true },
-    { id: 'hadmin', name: 'مدير المستشفى', perms: [...base, 'patients.view', 'er.view', 'lab.view', 'rad.view', 'pharmacy.view', 'beds.view', 'surgery.view', 'billing.view', 'inventory.view', 'workflows.view', 'workflows.design', 'workflows.publish', 'workflows.monitor', 'workflows.intervene', 'scenarios.view', 'admin.departments', 'admin.roles', 'audit.view', 'billing.refund.approve', 'data.export'], mfa: true },
+    { id: 'hadmin', name: 'مدير المستشفى', perms: [...base, 'patients.view', 'er.view', 'lab.view', 'rad.view', 'pharmacy.view', 'beds.view', 'surgery.view', 'billing.view', 'inventory.view', 'workflows.view', 'workflows.design', 'workflows.publish', 'workflows.monitor', 'workflows.intervene', 'scenarios.view', 'admin.departments', 'admin.roles', 'audit.view', 'billing.refund.approve', 'data.export', 'discharge.manage', 'housekeeping.manage', 'hr.manage', 'biomed.manage', 'records.manage', 'quality.manage'], mfa: true },
     { id: 'receptionist', name: 'موظف استقبال', perms: [...base, 'patients.view', 'patients.create', 'patients.edit', 'appointments.manage', 'er.view', 'beds.view', 'billing.view'] },
     { id: 'triage', name: 'ممرض فرز', perms: [...base, 'patients.view', 'patients.create', 'er.view', 'er.triage', 'nursing.tasks', 'beds.view'] },
     { id: 'nurse', name: 'ممرض', perms: [...base, 'patients.view', 'nursing.tasks', 'beds.view', 'pharmacy.view', 'lab.view', 'workflows.view'] },
-    { id: 'doctor', name: 'طبيب', perms: [...base, 'patients.view', 'er.view', 'clinic.consult', 'orders.create', 'lab.view', 'rad.view', 'pharmacy.view', 'beds.view', 'beds.assign', 'surgery.view', 'workflows.view'] },
+    { id: 'doctor', name: 'طبيب', perms: [...base, 'discharge.manage', 'patients.view', 'er.view', 'clinic.consult', 'orders.create', 'lab.view', 'rad.view', 'pharmacy.view', 'beds.view', 'beds.assign', 'surgery.view', 'workflows.view'] },
     { id: 'consultant', name: 'استشاري', perms: [...base, 'patients.view', 'er.view', 'clinic.consult', 'orders.create', 'lab.view', 'rad.view', 'pharmacy.view', 'beds.view', 'beds.assign', 'surgery.view', 'workflows.view', 'workflows.intervene'] },
     { id: 'labtech', name: 'فني معمل', perms: [...base, 'patients.view', 'lab.view', 'lab.process'] },
     { id: 'labsup', name: 'مشرف معمل', perms: [...base, 'patients.view', 'lab.view', 'lab.process', 'lab.verify', 'workflows.monitor'] },
     { id: 'radtech', name: 'فني أشعة', perms: [...base, 'patients.view', 'rad.view'] },
     { id: 'radiologist', name: 'طبيب أشعة', perms: [...base, 'patients.view', 'rad.view', 'rad.report'] },
     { id: 'pharmacist', name: 'صيدلي', perms: [...base, 'patients.view', 'pharmacy.view', 'pharmacy.dispense', 'inventory.view'] },
-    { id: 'wardmgr', name: 'مدير قسم داخلي', perms: [...base, 'patients.view', 'nursing.tasks', 'beds.view', 'beds.assign', 'workflows.monitor'] },
+    { id: 'wardmgr', name: 'مدير قسم داخلي', perms: [...base, 'discharge.manage', 'housekeeping.manage', 'patients.view', 'nursing.tasks', 'beds.view', 'beds.assign', 'workflows.monitor'] },
     { id: 'icu', name: 'طاقم العناية المركزة', perms: [...base, 'patients.view', 'nursing.tasks', 'beds.view', 'orders.create', 'clinic.consult'] },
     { id: 'surgeon', name: 'جرّاح', perms: [...base, 'patients.view', 'clinic.consult', 'orders.create', 'surgery.view', 'surgery.manage', 'beds.view', 'lab.view', 'rad.view'] },
     { id: 'anesth', name: 'طبيب تخدير', perms: [...base, 'patients.view', 'clinic.consult', 'surgery.view', 'surgery.manage', 'pharmacy.view'] },
     { id: 'accountant', name: 'محاسب', perms: [...base, 'patients.view', 'billing.view', 'billing.post', 'billing.refund.request', 'billing.refund.approve', 'insurance.claims'] },
     { id: 'insurance', name: 'موظف تأمين', perms: [...base, 'patients.view', 'billing.view', 'insurance.claims'] },
     { id: 'inventory', name: 'أمين مخزن', perms: [...base, 'inventory.view', 'inventory.manage', 'pharmacy.view'] },
-    { id: 'records', name: 'موظف سجلات طبية', perms: [...base, 'patients.view', 'patients.edit', 'patients.merge'] },
-    { id: 'quality', name: 'مدير الجودة', perms: [...base, 'patients.view', 'workflows.view', 'workflows.monitor', 'scenarios.view', 'audit.view'] },
+    { id: 'records', name: 'موظف سجلات طبية', perms: [...base, 'records.manage', 'patients.view', 'patients.edit', 'patients.merge'] },
+    { id: 'quality', name: 'مدير الجودة', perms: [...base, 'quality.manage', 'patients.view', 'workflows.view', 'workflows.monitor', 'scenarios.view', 'audit.view'] },
     { id: 'auditor', name: 'مدقق', perms: [...base, 'audit.view', 'billing.view', 'workflows.view', 'scenarios.view'] },
-    { id: 'itsupport', name: 'الدعم الفني', perms: [...base, 'workflows.view', 'workflows.monitor', 'audit.view'] },
+    { id: 'itsupport', name: 'الدعم الفني', perms: [...base, 'biomed.manage', 'workflows.view', 'workflows.monitor', 'audit.view'] },
   ];
 
   /* ---------- طاقم العمل (مستخدم تجريبي لكل دور) ---------- */
   EM.REF.staff = [
+    { id: 'u_owner', name: 'المدير العام', role: 'owner', dept: 'admin' },
     { id: 'u_sys', name: 'م. كريم عادل', role: 'sysadmin', dept: 'it' },
     { id: 'u_hadm', name: 'د. هالة منصور', role: 'hadmin', dept: 'admin' },
     { id: 'u_rec', name: 'منى سعيد', role: 'receptionist', dept: 'reception' },

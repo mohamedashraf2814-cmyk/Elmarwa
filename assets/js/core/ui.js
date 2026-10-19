@@ -14,7 +14,7 @@
     rx: { new: ['جديدة', 'info'], on_hold: ['معلقة للمراجعة', 'bad'], verified: ['تمت المراجعة', 'warn'], dispensed: ['تم الصرف', 'ok'], cancelled: ['ملغاة', ''], waiting_stock: ['بانتظار توفر', 'warn'] },
     bed: { occupied: ['مشغول', 'info'], available: ['متاح', 'ok'], cleaning: ['قيد التنظيف', 'warn'], reserved: ['محجوز', 'par'], maintenance: ['صيانة', 'bad'] },
     or: { scheduled: ['مجدولة', 'info'], pre_op: ['تجهيز', 'warn'], in_progress: ['جارية', 'bad'], recovery: ['إفاقة', 'par'], done: ['انتهت', 'ok'] },
-    inv: { draft: ['مسودة', ''], posted: ['مستحقة', 'warn'], partial: ['مدفوعة جزئياً', 'par'], paid: ['مدفوعة', 'ok'], reversed: ['ملغاة بقيد عكسي', 'bad'] },
+    inv: { draft: ['مفتوحة — زيارة جارية', 'info'], posted: ['مستحقة', 'warn'], partial: ['مدفوعة جزئياً', 'par'], paid: ['مدفوعة', 'ok'], reversed: ['ملغاة بقيد عكسي', 'bad'] },
     refund: { pending: ['بانتظار الاعتماد', 'warn'], approved: ['معتمد', 'ok'], rejected: ['مرفوض', 'bad'] },
     claim: { preauth: ['موافقة مسبقة', 'info'], submitted: ['مرسلة', 'warn'], accepted: ['مقبولة', 'ok'], rejected: ['مرفوضة', 'bad'], resubmitted: ['أعيد إرسالها', 'par'] },
     wf: { draft: ['مسودة', 'warn'], published: ['منشور', 'ok'], paused: ['موقوف', 'bad'], archived: ['مؤرشف', ''] },

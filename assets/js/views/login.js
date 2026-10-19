@@ -21,26 +21,31 @@
             <path d="M0 100 H340 L370 70 L395 130 L430 20 L462 112 L486 100 H700 L720 84 L736 112 L760 100 H1200" />
           </svg>
           <div class="login-stats">
-            <div><b class="num">23</b><span>قسماً مترابطاً</span></div>
-            <div><b class="num">15</b><span>مسار عمل قابل للتنفيذ</span></div>
-            <div><b class="num">28</b><span>سيناريو استثناء موثق</span></div>
+            <div><b class="num">${EM.REF.departments.length}</b><span>قسماً مترابطاً</span></div>
+            <div><b class="num">${EM.WF_TEMPLATES.length}</b><span>مسار عمل قابل للتنفيذ</span></div>
+            <div><b class="num">${EM.SCENARIOS.length}</b><span>سيناريو استثناء موثق</span></div>
           </div>
         </section>
         <section class="login-panel">
           <div class="login-card" id="loginCard">
             <h1>تسجيل الدخول</h1>
-            <p class="muted">اختر مستخدماً تجريبياً للدخول بدوره وصلاحياته.</p>
-            <div class="login-users">
+            <p class="muted">حساب واحد يدير المستشفى بكل أقسامه.</p>
+            <form id="ownerForm" class="stack" autocomplete="off">
+              <div class="field"><label for="lg-user">اسم المستخدم</label><input id="lg-user" class="input" value="admin" autocomplete="username"></div>
+              <div class="field"><label for="lg-pass">كلمة المرور</label><input id="lg-pass" class="input" type="password" value="elmarwa" autocomplete="current-password"><span class="hint">بيانات العرض: admin / elmarwa</span></div>
+              <button class="btn primary login-go" type="submit">${icon('lock', 'sm')} دخول المدير العام</button>
+            </form>
+            <details class="small login-roles"><summary class="muted">تجربة النظام بدور موظف في قسم معين</summary>
+              <div class="login-users">
               ${FEATURED.map((id) => { const u = EM.REF.user(id); const r = EM.REF.role(u.role); return `
                 <button class="login-user" data-u="${esc(id)}">
                   <span class="avatar">${esc(EM.initials(u.name.replace(/^(د\.|م\.|أ\.|ممرض\/|ممرضة\/)\s*/, '')))}</span>
                   <span class="grow"><b>${esc(r.name)}</b><span>${esc(u.name)}</span></span>
                   ${r.mfa ? `<span class="pill info plain">${icon('lock', 'sm')} تحقق ثنائي</span>` : ''}
                 </button>`; }).join('')}
-            </div>
-            <details class="small"><summary class="muted" style="cursor:pointer">كل الأدوار (${EM.REF.roles.length})</summary>
-              <select class="input" id="anyRole" style="margin-top:8px">${EM.REF.staff.map((s) => `<option value="${esc(s.id)}">${esc(EM.REF.role(s.role).name)} — ${esc(s.name)}</option>`).join('')}</select>
-              <button class="btn" id="anyGo" style="margin-top:8px;width:100%">الدخول بهذا الدور</button>
+              </div>
+              <select class="input" id="anyRole" style="margin-top:8px" aria-label="كل الأدوار">${EM.REF.staff.map((s) => `<option value="${esc(s.id)}">${esc(EM.REF.role(s.role).name)} — ${esc(s.name)}</option>`).join('')}</select>
+              <button class="btn" id="anyGo" type="button" style="margin-top:8px;width:100%">الدخول بهذا الدور</button>
             </details>
             <p class="xs muted login-foot">تقديم شركة <b>${esc(EM.HOSPITAL.vendor)}</b> · نسخة عرض ببيانات وهمية</p>
           </div>
@@ -70,6 +75,13 @@
           EM.render();
         });
       };
+      root.querySelector('#ownerForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const u = root.querySelector('#lg-user').value.trim().toLowerCase();
+        const pw = root.querySelector('#lg-pass').value;
+        if (u !== 'admin' || pw !== 'elmarwa') { ui.toast('اسم المستخدم أو كلمة المرور غير صحيحة', 'bad'); return; }
+        go('u_owner');
+      });
       root.querySelectorAll('[data-u]').forEach((b) => b.addEventListener('click', () => go(b.dataset.u)));
       root.querySelector('#anyGo').addEventListener('click', () => go(root.querySelector('#anyRole').value));
     },

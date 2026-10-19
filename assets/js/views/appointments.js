@@ -59,7 +59,8 @@
               const w = s.waitlist.find((x) => x.clinic === a.clinic);
               if (w) store.notify('info', 'خانة متاحة', `تم إبلاغ ${store.patientName(w.patientId)} من قائمة الانتظار`, '#/appointments');
             }
-            if (to === 'arrived') store.startInstance('wf_outpatient', { insured: store.patient(a.patientId)?.insurer !== 'NONE', hasOrders: true }, a.patientId);
+            if (to === 'arrived') EM.H.apptArrive(a);
+            if (to === 'done') EM.H.closeEncounter(a.patientId, 'انتهاء زيارة العيادة');
             store.commit('appointments');
             ui.toast(`${store.patientName(a.patientId)}: ${ui.statusText('appt', to)}`, 'ok');
             this.render(el);
@@ -111,6 +112,7 @@
           const at = type === 'حضور مباشر' ? new Date().toISOString() : new Date(new Date(last?.at || Date.now()).getTime() + 20 * 60000).toISOString();
           const ap = { id: EM.uid('AP'), clinic: c, patientId: m.querySelector('#b-p').value, at, type, status: type === 'حضور مباشر' ? 'arrived' : 'booked', queueNo: s.appointments.filter((a) => a.clinic === c).length + 1 };
           s.appointments.push(ap);
+          if (ap.status === 'arrived') EM.H.apptArrive(ap);
           store.audit(why ? 'حجز إضافي فوق السعة' : 'حجز موعد', 'appointment', ap.id, { reason: why });
           store.commit('appointments'); close(); ui.toast('تم الحجز وإضافة المريض للطابور', 'ok'); done();
         });

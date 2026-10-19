@@ -68,11 +68,12 @@
     const appointments = [];
     let apIdx = 0;
     EM.CLINICS.forEach((c, ci) => {
+      // الجدول يبدأ قبل الوقت الحالي بساعتين ونصف ليبدو حياً في أي ساعة يُعرض فيها النظام
+      const day0 = new Date(now); day0.setMinutes(Math.floor(day0.getMinutes() / 20) * 20, 0, 0);
+      const t0 = day0.getTime() - 150 * 60000;
       for (let slot = 0; slot < 15; slot++) {
-        const h = 9 + Math.floor((slot * 20) / 60);
-        const m = (slot * 20) % 60;
         if (r.chance(0.18)) continue;
-        const t = today(h, m);
+        const t = new Date(t0 + slot * 20 * 60000).toISOString();
         const diff = (new Date(t) - now) / 60000;
         let status;
         if (diff > 30) status = r.chance(0.08) ? 'cancelled' : 'booked';
