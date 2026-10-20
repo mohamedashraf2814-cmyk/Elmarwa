@@ -47,6 +47,7 @@
               <select class="input" id="anyRole" style="margin-top:8px" aria-label="كل الأدوار">${EM.REF.staff.map((s) => `<option value="${esc(s.id)}">${esc(EM.REF.role(s.role).name)} — ${esc(s.name)}</option>`).join('')}</select>
               <button class="btn" id="anyGo" type="button" style="margin-top:8px;width:100%">الدخول بهذا الدور</button>
             </details>
+            <div id="installSlot"></div>
             <p class="xs muted login-foot">تقديم شركة <b>${esc(EM.HOSPITAL.vendor)}</b> · نسخة عرض ببيانات وهمية</p>
           </div>
         </section>
@@ -75,6 +76,21 @@
           EM.render();
         });
       };
+      // زر تنزيل التطبيق — يتغير حسب حالة الجهاز
+      const slot = root.querySelector('#installSlot');
+      const drawInstall = (st) => {
+        if (!slot.isConnected) return;
+        const dev = EM.pwa.isIOS ? 'iPhone و iPad' : EM.pwa.isAndroid ? 'أندرويد' : 'الكمبيوتر';
+        slot.innerHTML = st === 'installed'
+          ? `<div class="install-card done">${icon('check')}<div><b>تعمل من تطبيق المروة المثبت</b><span>يفتح بدون إنترنت بعد أول تشغيل</span></div></div>`
+          : `<button class="install-card" id="installBtn" type="button"><img src="assets/img/icons/icon-192.png" alt="" width="44" height="44">
+              <div class="grow"><b>تنزيل تطبيق المروة</b><span>ثبّته على ${dev} — يفتح كتطبيق مستقل ويعمل بدون إنترنت</span></div>
+              <span class="install-go">${icon('download', 'sm')} تنزيل</span></button>`;
+        slot.querySelector('#installBtn')?.addEventListener('click', () => EM.pwa.install());
+      };
+      drawInstall(EM.pwa.state());
+      const off = EM.pwa.onChange((st) => { if (!slot.isConnected) off(); else drawInstall(st); });
+
       root.querySelector('#ownerForm').addEventListener('submit', (e) => {
         e.preventDefault();
         const u = root.querySelector('#lg-user').value.trim().toLowerCase();

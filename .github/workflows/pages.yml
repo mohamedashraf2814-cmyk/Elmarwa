@@ -27,10 +27,13 @@ jobs:
       - name: التحقق من صحة ملفات JavaScript
         run: for f in $(find assets/js -name '*.js'); do node --check "$f"; done
 
+      - name: توليد عامل الخدمة (PWA) بأحدث قائمة ملفات
+        run: bash scripts/gen-sw.sh
+
       - name: تجهيز الملفات للنشر
         run: |
           mkdir -p _site
-          cp -r index.html assets docs _site/
+          cp -r index.html manifest.webmanifest sw.js assets docs _site/
           touch _site/.nojekyll
 
       - uses: actions/configure-pages@v5

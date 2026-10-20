@@ -5,6 +5,7 @@
   "description": "مستشفى المروة — نظام إدارة المستشفى ومصمم سير العمل المرئي (واجهة العرض). تقديم شركة سوفت استريم.",
   "scripts": {
     "start": "npx --yes serve -l 8080 .",
+    "sw": "bash scripts/gen-sw.sh",
     "check": "for f in $(find assets/js -name '*.js'); do node --check \"$f\" || exit 1; done && echo OK"
   },
   "author": "Soft Stream",

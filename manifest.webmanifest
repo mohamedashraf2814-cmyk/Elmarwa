@@ -1,0 +1,30 @@
+{
+  "name": "مستشفى المروة — نظام إدارة المستشفى",
+  "short_name": "المروة",
+  "description": "نظام متكامل لإدارة مستشفى المروة مع مصمم سير عمل مرئي ومساعد تشغيل. تقديم شركة سوفت استريم.",
+  "lang": "ar",
+  "dir": "rtl",
+  "id": "./",
+  "start_url": "./index.html#/dashboard",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone"],
+  "orientation": "any",
+  "background_color": "#1B2E6B",
+  "theme_color": "#1B2E6B",
+  "categories": ["medical", "business", "productivity"],
+  "icons": [
+    { "src": "assets/img/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "assets/img/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "assets/img/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "الطوارئ", "url": "./index.html#/emergency", "icons": [{ "src": "assets/img/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "إدارة الأسرّة", "url": "./index.html#/beds", "icons": [{ "src": "assets/img/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "مصمم سير العمل", "url": "./index.html#/admin/workflows", "icons": [{ "src": "assets/img/icons/icon-192.png", "sizes": "192x192" }] }
+  ],
+  "screenshots": [
+    { "src": "docs/screenshots/02-dashboard.png", "sizes": "1440x900", "type": "image/png", "form_factor": "wide", "label": "لوحة القيادة — نبض المستشفى" },
+    { "src": "docs/screenshots/04-patient-passport.png", "sizes": "1440x900", "type": "image/png", "form_factor": "wide", "label": "جواز المريض" }
+  ]
+}
